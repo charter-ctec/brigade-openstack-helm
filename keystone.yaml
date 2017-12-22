@@ -1,0 +1,147 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: mariadb
+data:
+  chart_name: mariadb
+  release: mariadb
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: mariadb
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: memcached
+data:
+  chart_name: memcached
+  release: memcached
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: memcached
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: keystone
+data:
+  chart_name: keystone
+  release: keystone
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: keystone-bootstrap
+          type: job
+          labels:
+            - application: keystone
+            - component: bootstrap
+            - release_group: osh-keystone
+        - name: keystone-credential-setup
+          type: job
+          labels:
+            - application: keystone
+            - component: credential-setup
+            - release_group: osh-keystone
+        - name: keystone-db-init
+          type: job
+          labels:
+            - application: keystone
+            - component: db-init
+            - release_group: osh-keystone
+        - name: keystone-db-sync
+          type: job
+          labels:
+            - application: keystone
+            - component: db-sync
+            - release_group: osh-keystone
+        - name: keystone-fernet-setup
+          type: job
+          labels:
+            - application: keystone
+            - component: fernet-setup
+            - release_group: osh-keystone
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: keystone
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: keystone-infra-services
+data:
+  description: "Keystone Infra Services"
+  sequenced: True
+  chart_group:
+    - mariadb
+    - memcached
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: openstack-keystone
+data:
+  description: "Deploying OpenStack Keystone"
+  sequenced: True
+  test_charts: False
+  chart_group:
+    - keystone
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: armada
+  chart_groups:
+    - keystone-infra-services
+    - openstack-keystone
