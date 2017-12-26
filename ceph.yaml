@@ -1,0 +1,179 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph
+data:
+  chart_name: ceph
+  release: ceph
+  namespace: ceph
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: ceph-bootstrap
+          type: job
+          labels:
+            - application: ceph
+            - component: bootstrap
+            - release_group: osh-ceph
+        - name: ceph-mds-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: mds-keyring-generator
+            - release_group: osh-ceph
+        - name: ceph-mon-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: mon-keyring-generator
+            - release_group: osh-ceph
+        - name: ceph-rgw-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: rgw-keyring-generator
+            - release_group: osh-ceph
+        - name: ceph-storage-keys-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: storage-keys-generator
+            - release_group: osh-ceph
+        - name: ceph-osd-keyring-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: osd-keyring-generator
+            - release_group: osh-ceph
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    ceph:
+      rgw_keystone_auth: true
+    network:
+      public: 172.17.0.1/16
+      cluster: 172.17.0.1/16
+    deployment:
+      storage_secrets: true
+      ceph: true
+      rbd_provisioner: true
+      client_secrets: false
+      rgw_keystone_user_and_endpoints: false
+    bootstrap:
+      enabled: true
+    conf:
+      ceph:
+        config:
+          global:
+            osd_pool_default_size: 1
+          osd:
+            osd_crush_chooseleaf_type: 0
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: ceph
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-config
+data:
+  chart_name: ceph-config
+  release: ceph-config
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: ceph-namespace-client-key-generator
+          type: job
+          labels:
+            - application: ceph
+            - component: namespace-client-key-generator
+            - release_group: osh-ceph
+  values:
+    endpoints:
+      identity:
+        namespace: openstack
+      object_store:
+        namespace: ceph
+      ceph_mon:
+        namespace: ceph
+    ceph:
+      rgw_keystone_auth: true
+    network:
+      public: 172.17.0.1/16
+      cluster: 172.17.0.1/16
+    deployment:
+      storage_secrets: false
+      ceph: false
+      rbd_provisioner: false
+      client_secrets: true
+      rgw_keystone_user_and_endpoints: false
+    conf:
+      ceph:
+        config:
+          global:
+            osd_pool_default_size: 1
+          osd:
+            osd_crush_chooseleaf_type: 0
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: ceph
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: ceph-storage
+data:
+  description: "Ceph Storage"
+  sequenced: True
+  chart_group:
+    - ceph
+    - ceph-config
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: osh
+  chart_groups:
+    - ceph-storage

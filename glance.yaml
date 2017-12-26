@@ -1,0 +1,152 @@
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: helm-toolkit
+data:
+  chart_name: helm-toolkit
+  release: helm-toolkit
+  namespace: helm-toolkit
+  timeout: 300
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: helm-toolkit
+    reference: master
+  dependencies: []
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: etcd
+data:
+  chart_name: etcd
+  release: etcd
+  namespace: openstack
+  timeout: 3600
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: etcd
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: rabbitmq
+data:
+  chart_name: rabbitmq
+  release: rabbitmq
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: rabbitmq
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/Chart/v1
+metadata:
+  schema: metadata/Document/v1
+  name: glance
+data:
+  chart_name: glance
+  release: glance
+  namespace: openstack
+  timeout: 300
+  install:
+    no_hooks: false
+  upgrade:
+    no_hooks: false
+    pre:
+      delete:
+        - name: glance-bootstrap
+          type: job
+          labels:
+            - application: glance
+            - component: bootstrap
+            - release_group: osh-glance
+        - name: glance-db-init
+          type: job
+          labels:
+            - application: glance
+            - component: db-init
+            - release_group: osh-glance
+        - name: glance-db-sync
+          type: job
+          labels:
+            - application: glance
+            - component: db-sync
+            - release_group: osh-glance
+        - name: glance-ks-service
+          type: job
+          labels:
+            - application: glance
+            - component: ks-service
+            - release_group: osh-glance
+        - name: glance-ks-endpoints
+          type: job
+          labels:
+            - application: glance
+            - component: ks-endpoints
+            - release_group: osh-glance
+        - name: glance-ks-user
+          type: job
+          labels:
+            - application: glance
+            - component: ks-user
+            - release_group: osh-glance
+  values: {}
+  source:
+    type: local
+    location: /opt/openstack-helm/charts
+    subpath: glance
+    reference: master
+  dependencies:
+    - helm-toolkit
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: glance-components
+data:
+  description: "OpenStack Glance Components"
+  sequenced: False
+  chart_group:
+    - glance
+---
+schema: armada/ChartGroup/v1
+metadata:
+  schema: metadata/Document/v1
+  name: glance-infra-services
+data:
+  description: "Glance Infra Services"
+  sequenced: False
+  chart_group:
+    - etcd
+    - rabbitmq
+---
+schema: armada/Manifest/v1
+metadata:
+  schema: metadata/Document/v1
+  name: armada-manifest
+data:
+  release_prefix: armada
+  chart_groups:
+    - glance-infra-services
+    - glance-components
